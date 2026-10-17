@@ -8,3 +8,6 @@ dist/
 *.egg-info/
 .claude/
 CLAUDE.md
+data/*.csv
+data/*.jsonl
+artifacts/

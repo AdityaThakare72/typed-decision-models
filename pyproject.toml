@@ -1,0 +1,32 @@
+[project]
+name = "typed-decision-models"
+version = "0.1.0"
+description = "Benchmark: Laya typed decisions vs RF / XGBoost / BERT on an agent-routing task"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "numpy>=1.26",
+    "pandas>=2.1",
+    "scikit-learn>=1.4",
+    "xgboost>=2.0",
+]
+
+[project.optional-dependencies]
+# Laya needs torch + transformers. Heavy, so only install on Colab / GPU boxes.
+laya = ["laya>=0.4.11", "torch>=2.2", "transformers>=4.48"]
+# BERT baseline + Hugging Face datasets loader.
+bert = ["torch>=2.2", "transformers>=4.48", "datasets>=2.18", "accelerate>=0.30"]
+# LangGraph router demo (notebook 04).
+graph = ["langgraph>=0.2"]
+# Charts in the benchmark notebook.
+viz = ["matplotlib>=3.8"]
+
+[dependency-groups]
+dev = ["pytest>=8.0"]
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
