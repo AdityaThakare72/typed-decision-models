@@ -66,18 +66,36 @@ NOTES.md                file-by-file explainer + concepts
 ## Results
 
 Test set: 450 tickets (synthetic, seed 42). Latency is single-ticket p50 / p95 over 100 calls.
-Classical models on CPU, transformers on a Colab T4.
+Classical models on Colab CPU, transformers on a Colab T4 GPU. One run, one seed.
 
 | model | exact match | route F1 | priority F1 | requires-human F1 | size (MB) | p50 (ms) | p95 (ms) |
 |---|---|---|---|---|---|---|---|
-| Random Forest | TODO | TODO | TODO | TODO | TODO | TODO | TODO |
-| XGBoost | TODO | TODO | TODO | TODO | TODO | TODO | TODO |
-| BERT (fine-tuned) | TODO | TODO | TODO | TODO | TODO | TODO | TODO |
-| Laya base (zero-shot) | TODO | TODO | TODO | TODO | TODO | TODO | TODO |
-| Laya typed-decisions (zero-shot) | TODO | TODO | TODO | TODO | TODO | TODO | TODO |
-| Laya fine-tuned | TODO | TODO | TODO | TODO | TODO | TODO | TODO |
+| Random Forest | 0.598 | 0.944 | 0.538 | 0.892 | 67.5 | 71.5 | 88.3 |
+| **XGBoost** | **0.736** | 0.951 | 0.641 | **0.924** | **5.4** | 17.4 | 19.0 |
+| BERT (fine-tuned, 3 epochs) | 0.667 | 0.955 | 0.555 | 0.921 | 417.7 | **10.5** | **14.9** |
+| Laya base (zero-shot) | 0.173 | 0.615 | 0.190 | 0.530 | 1607.1 | 45.8 | 49.3 |
+| Laya typed-decisions (zero-shot) | 0.296 | 0.674 | 0.302 | 0.574 | 1607.1 | 46.1 | 51.8 |
+| Laya fine-tuned (2 epochs) | 0.720 | **0.958** | **0.679** | 0.916 | 1607.1 | 46.5 | 54.1 |
 
-Notebook 03 writes this table to `artifacts/results_full.md`.
+Exact match = all three fields right. Full numbers (accuracy too) are in notebook 03 / `artifacts/results_full.md`.
+
+### What it says
+
+- **Fine-tuned Laya and XGBoost tie on exact match** (0.720 vs 0.736, ~7 tickets apart; one standard error on 450
+  tickets is ~0.02). Laya is best on priority, the field that needs text and metadata together; XGBoost is best on
+  requires-human.
+- **Routing is saturated.** With 5% label noise the best possible route accuracy is ~0.958, and fine-tuned Laya hits
+  it. The models only really differ on priority.
+- **Zero-shot Laya doesn't work for a custom schema** (0.17 / 0.30 exact match). Fine-tuning took it to 0.72 and fixed
+  its calibration (held-out ECE 0.17 → 0.015).
+- **Cost:** for about the same quality, XGBoost is ~300x smaller and runs faster on a CPU than Laya does on a GPU.
+  Laya is the pick when you need calibrated confidences, or want to add new questions without re-engineering features.
+- **BERT** is the fastest (10.5 ms on GPU) but reads numbers as text, which hurts priority.
+- In the LangGraph demo (notebook 04, XGBoost router) 92% of 100 test tickets reached the right node, and the router
+  was ~17 of the ~19 ms per ticket.
+
+Caveats: synthetic data with rule-based labels (trees are well suited to learning thresholds), one seed, CPU vs GPU
+latency.
 
 ## Licenses of the models used
 
