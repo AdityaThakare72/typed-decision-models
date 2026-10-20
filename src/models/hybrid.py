@@ -20,14 +20,17 @@ class HybridDecisionModel(DecisionModel):
         self.name = f"hybrid:{fast.name}+{slow.name}@{threshold}"
         self.escalations = 0   # how many tickets went to the slow model
         self.total = 0
+        self.last_pause_ms = 0.0  # rate-limit pause of the slow model on the latest ticket (not latency)
 
     def predict_row(self, row) -> DecisionOutput:
         quick = self.fast.predict_one(row)
         self.total += 1
+        self.last_pause_ms = 0.0
         if quick.min_confidence() >= self.threshold:
             return quick
         self.escalations += 1
         careful = self.slow.predict_one(row)
+        self.last_pause_ms = getattr(self.slow, "last_pause_ms", 0.0)
         # Report the time of both calls: the fast model ran first either way.
         careful.latency_ms += quick.latency_ms
         return careful

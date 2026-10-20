@@ -106,6 +106,22 @@ def test_drops_thinking_setting_if_unsupported(small_df):
     assert "thinking_config" not in client.models.configs[1]
 
 
+def test_rate_limit_pause_is_not_latency(small_df):
+    # Regression: the free-tier pause used to be inside the timer, so every call looked ~6 s slow.
+    model, _ = fake_gemini([GOOD, GOOD], min_seconds_between_calls=0.3)
+    model.predict_one(small_df.iloc[0])
+    second = model.predict_one(small_df.iloc[1])
+    assert model.last_pause_ms > 200        # it did wait...
+    assert second.latency_ms < 100          # ...but the wait isn't counted
+    assert model.calls[1]["latency_ms"] < 100
+
+
+def test_graph_leaves_out_rate_limit_pause(small_df):
+    model, _ = fake_gemini([GOOD, GOOD, GOOD], min_seconds_between_calls=0.3)
+    results = run_tickets(build_router_graph(model), small_df.head(3))
+    assert (results["graph_ms"] < 150).all()
+
+
 def test_unknown_model_needs_prices():
     with pytest.raises(ValueError):
         GeminiDecisionModel(model="gemini-made-up", client=object())
