@@ -111,20 +111,20 @@ Gemini only when Laya's least confident field is below the threshold.
 
 | router | correct destination | exact match | router p50 / p95 (ms) | LLM share | $ per 1M tickets |
 |---|---|---|---|---|---|
-| **Laya fine-tuned (T4)** | **0.90** | **0.76** | 45 / 60 | 0% | ~$5 |
-| Gemini only (`gemini-3.1-flash-lite`) | 0.88 | 0.51 | TODO (re-run) | 100% | $381 |
-| Hybrid Laya→Gemini (threshold 0.8) | 0.89 | 0.71 | 68 / TODO (re-run) | 24% | $96 |
-| XGBoost (reference, CPU) | 0.89 | 0.72 | 16 / 20 | 0% | ~$0.2 |
+| **Laya fine-tuned (T4)** | **0.90** | **0.76** | 45 / 66 | 0% | ~$5 |
+| Gemini only (`gemini-3.1-flash-lite`) | 0.88 | 0.51 | 972 / 1,438 | 100% | $381 |
+| Hybrid Laya→Gemini (threshold 0.8) | 0.89 | 0.71 | 68 / 1,148 | 24% | $96 |
+| XGBoost (reference, CPU) | 0.89 | 0.72 | 17 / 21 | 0% | ~$0.2 |
 
 Gemini prices from the [official pricing page](https://ai.google.dev/gemini-api/docs/pricing) (checked 2026-10-19).
-Laya / XGBoost cost is compute time at an assumed $0.35/h T4 GPU and $0.04/h CPU.
-
-Gemini latency is pending a re-run: the first run counted the free-tier pause between calls as latency (fixed since).
-A single un-paused Gemini call took 3.3 s.
+Laya / XGBoost cost is compute time at an assumed $0.35/h T4 GPU and $0.04/h CPU. Gemini latency includes the
+network round trip from Colab (free-tier key; the rate-limit pauses between calls are not counted).
 
 - **Laya beats the LLM router by 25 points on exact match** (100 tickets, ±5 points). Gemini routes and hands off to
   humans almost as well (correct destination 0.88 vs 0.90), but gets priority right only 57 times out of 100 vs 84 for
   Laya: a numeric policy written in words is hard to apply; Laya learned it from data.
+- **~21x faster:** Laya's router p50 is 45 ms vs 972 ms for Gemini. At 1M tickets a month that's ~13 vs ~270 hours
+  spent waiting on the router.
 - **~80x cheaper:** each Gemini call is ~1,330 input + 32 output tokens, $0.38 per 1,000 tickets. Laya on a T4 is
   ~$0.005. No Gemini answer broke the JSON schema.
 - **The hybrid hurt** (0.76 → 0.71): it sent 24% of tickets to Gemini, which is weaker than Laya even on the tickets
