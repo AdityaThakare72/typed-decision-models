@@ -131,6 +131,7 @@ class GeminiDecisionModel(DecisionModel):
         self.client = client          # tests pass a fake client; real one is made on first use
         self.calls: list[dict] = []   # one record per API call: latency, tokens, cost, ok
         self._last_call = 0.0
+        self.last_pause_ms = 0.0      # rate-limit pause before the latest call (not latency)
 
     def _get_client(self):
         if self.client is None:
@@ -150,13 +151,18 @@ class GeminiDecisionModel(DecisionModel):
             config["thinking_config"] = {"thinking_level": self.thinking_level}
         return config
 
+    def _wait_for_rate_limit(self) -> float:
+        """Sleep until `min_seconds_between_calls` has passed since the last call; returns ms slept."""
+        pause = self.min_seconds_between_calls - (time.monotonic() - self._last_call)
+        if pause <= 0:
+            return 0.0
+        time.sleep(pause)
+        return pause * 1000.0
+
     def _call(self, ticket_json: str):
         """One API call with retry on rate limits (429) and server errors (5xx)."""
         wait = self.retry_wait
         for attempt in range(self.max_retries + 1):
-            pause = self.min_seconds_between_calls - (time.monotonic() - self._last_call)
-            if pause > 0:
-                time.sleep(pause)
             self._last_call = time.monotonic()
             try:
                 return self._get_client().models.generate_content(
@@ -175,6 +181,9 @@ class GeminiDecisionModel(DecisionModel):
 
     def predict_row(self, row) -> DecisionOutput:
         ticket_json = json.dumps(row_to_state(row))
+        # The free-tier pause happens BEFORE the timer starts, so it never counts as latency.
+        # The graph reads `last_pause_ms` to take it out of the end-to-end time too.
+        self.last_pause_ms = self._wait_for_rate_limit()
         start = time.perf_counter()
         response = self._call(ticket_json)
         latency_ms = (time.perf_counter() - start) * 1000.0
@@ -201,7 +210,6 @@ class GeminiDecisionModel(DecisionModel):
         return [self.predict_row(row) for _, row in df.iterrows()]
 
     def predict_one(self, row) -> DecisionOutput:
-        # Latency is measured around the API call only (rate-limit pauses excluded).
         return self.predict_row(dict(row))
 
     def usage_summary(self) -> dict:

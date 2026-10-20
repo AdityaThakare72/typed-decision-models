@@ -22,6 +22,7 @@ class TicketState(TypedDict, total=False):
     decision: dict                             # filled in by the router
     reply: str                                 # filled in by whichever agent handles it
     handled_by: str                            # name of the node that answered
+    paused_ms: float                           # rate-limit pause inside the router (not latency)
     trace: Annotated[list[str], operator.add]  # every node appends a line
 
 
@@ -38,7 +39,9 @@ def build_router_graph(router_model: DecisionModel, confidence_floor: float = 0.
         out = router_model.predict_one(state["ticket"])
         note = (f"router[{router_model.name}]: route={out.route} priority={out.priority} "
                 f"human={out.requires_human} conf={out.confidence:.2f} ({out.latency_ms:.1f} ms)")
-        return {"decision": out.to_dict(), "trace": [note]}
+        # An API-backed router may sleep to respect a rate limit; report it so it can be left out of timings.
+        paused_ms = getattr(router_model, "last_pause_ms", 0.0)
+        return {"decision": out.to_dict(), "paused_ms": paused_ms, "trace": [note]}
 
     def pick_next_node(state: TicketState) -> str:
         decision = state["decision"]
@@ -80,7 +83,7 @@ def run_tickets(graph, df: pd.DataFrame) -> pd.DataFrame:
         ticket = {key: row[key] for key in ["query", "account_tier", "channel", "urgency_score", "past_failures"]}
         start = time.perf_counter()
         final = graph.invoke({"ticket": ticket})
-        total_ms = (time.perf_counter() - start) * 1000.0
+        total_ms = (time.perf_counter() - start) * 1000.0 - final.get("paused_ms", 0.0)
         decision = final["decision"]
         records.append({
             "expected": expected_destination(row),
