@@ -25,9 +25,19 @@ class DecisionOutput:
     requires_human: bool
     confidence: float      # model's confidence in the route (0..1). Not always calibrated!
     latency_ms: float = 0.0
+    # Optional per-field confidences, e.g. {"route_target": 0.98, "priority_level": 0.55, ...}.
+    # Route confidence alone hides most mistakes (they're usually in priority), so a router
+    # that wants to escalate unsure tickets should look at the weakest field.
+    field_confidences: dict | None = None
 
     def to_dict(self) -> dict:
         return asdict(self)
+
+    def min_confidence(self) -> float:
+        """Confidence of the least sure field (falls back to the route confidence)."""
+        if self.field_confidences:
+            return min(self.field_confidences.values())
+        return self.confidence
 
 
 class DecisionModel(ABC):

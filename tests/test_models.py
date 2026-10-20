@@ -22,6 +22,8 @@ def test_classical_fit_predict(kind, small_splits):
     assert {o.priority for o in outputs} <= set(PRIORITIES)
     assert all(isinstance(o.requires_human, bool) for o in outputs)
     assert all(0.0 <= o.confidence <= 1.0 for o in outputs)
+    assert all(set(o.field_confidences) == {"route_target", "priority_level", "requires_human"} for o in outputs)
+    assert all(o.min_confidence() <= o.confidence for o in outputs)
     assert model.size_mb() > 0
 
 
@@ -50,7 +52,9 @@ def test_parse_laya_answers():
         "requires_human": {"type": "noul", "noul": 0.73},
     }
     out = parse_laya_answers(fake_answers)
-    assert out == DecisionOutput("fraud", "high", True, confidence=0.81)
+    assert (out.route, out.priority, out.requires_human, out.confidence) == ("fraud", "high", True, 0.81)
+    assert out.field_confidences == {"route_target": 0.81, "priority_level": 0.6, "requires_human": 0.73}
+    assert out.min_confidence() == 0.6
     # stricter threshold flips the yes/no answer
     assert parse_laya_answers(fake_answers, human_threshold=0.9).requires_human is False
 

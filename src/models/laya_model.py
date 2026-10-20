@@ -36,11 +36,18 @@ def parse_laya_answers(answers: dict, human_threshold: float = 0.5) -> DecisionO
     best_level = max(level_probs, key=lambda level: level_probs[level])
     priority = PRIORITIES[int(best_level)]
 
+    p_true = float(human_answer["noul"])
+    route_confidence = float(route_answer.get("answer_confidence", route_answer.get("confidence", 0.0)))
     return DecisionOutput(
         route=str(route_answer["choice"]),
         priority=priority,
-        requires_human=float(human_answer["noul"]) >= human_threshold,
-        confidence=float(route_answer.get("answer_confidence", route_answer.get("confidence", 0.0))),
+        requires_human=p_true >= human_threshold,
+        confidence=route_confidence,
+        field_confidences={
+            "route_target": route_confidence,
+            "priority_level": float(level_probs[best_level]),
+            "requires_human": max(p_true, 1.0 - p_true),
+        },
     )
 
 

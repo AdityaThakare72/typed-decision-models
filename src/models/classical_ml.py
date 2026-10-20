@@ -79,13 +79,12 @@ class ClassicalDecisionModel(DecisionModel):
             raise RuntimeError("call fit() before predicting")
         X = df[FEATURE_COLUMNS]
         decoded = {}
-        route_confidence = None
+        confidences = {}  # column -> probability of the chosen class, per row
         for column in LABEL_COLUMNS:
             probs = self.pipelines[column].predict_proba(X)
             best = probs.argmax(axis=1)
             decoded[column] = self.label_encoders[column].inverse_transform(best)
-            if column == "route_target":
-                route_confidence = probs.max(axis=1)
+            confidences[column] = probs.max(axis=1)
 
         outputs = []
         for i in range(len(df)):
@@ -94,7 +93,8 @@ class ClassicalDecisionModel(DecisionModel):
                 priority=str(decoded["priority_level"][i]),
                 # the encoder stored "True"/"False" strings, turn them back into a bool
                 requires_human=str(decoded["requires_human"][i]) == "True",
-                confidence=float(route_confidence[i]),
+                confidence=float(confidences["route_target"][i]),
+                field_confidences={column: float(confidences[column][i]) for column in LABEL_COLUMNS},
             ))
         return outputs
 

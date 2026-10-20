@@ -58,13 +58,20 @@ def logits_to_outputs(logits: np.ndarray) -> list[DecisionOutput]:
     """Decode a (n, 12) numpy array of logits into DecisionOutputs."""
     route_logits, priority_logits, human_logits = split_logits(logits)
     route_probs = softmax(route_logits)
+    priority_probs = softmax(priority_logits)
+    human_probs = softmax(human_logits)
     outputs = []
     for i in range(len(logits)):
         outputs.append(DecisionOutput(
             route=ROUTES[int(route_probs[i].argmax())],
-            priority=PRIORITIES[int(priority_logits[i].argmax())],
-            requires_human=HUMAN_CLASSES[int(human_logits[i].argmax())],
+            priority=PRIORITIES[int(priority_probs[i].argmax())],
+            requires_human=HUMAN_CLASSES[int(human_probs[i].argmax())],
             confidence=float(route_probs[i].max()),
+            field_confidences={
+                "route_target": float(route_probs[i].max()),
+                "priority_level": float(priority_probs[i].max()),
+                "requires_human": float(human_probs[i].max()),
+            },
         ))
     return outputs
 
