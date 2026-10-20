@@ -120,8 +120,8 @@ Run with `uv run pytest`.
 
 ### `notebooks/`
 
-01 data + trees · 02 Laya three ways · 03 everything together with charts · 04 the model inside a LangGraph agent ·
-05 decision model vs LLM vs hybrid as the router, with latency and dollar cost.
+01 data + trees · 02 Laya three ways · 03 everything together with charts · 04 Laya inside a LangGraph agent ·
+05 Laya vs LLM vs hybrid (Laya first, Gemini when unsure) as the router, with latency and dollar cost.
 Each has a markdown explanation before every code cell, and a first cell that clones the repo on Colab.
 
 ---

@@ -44,9 +44,9 @@ On Colab (GPU for Laya / BERT), open the notebooks in order. Each one clones thi
 1. `notebooks/01_dataset_and_classical_ml.ipynb`: EDA, RF + XGBoost
 2. `notebooks/02_laya_base_vs_finetuned.ipynb`: Laya zero-shot vs fine-tuned
 3. `notebooks/03_full_benchmark_laya_vs_xgboost_rf_bert.ipynb`: everything head to head, with charts
-4. `notebooks/04_langgraph_decision_router.ipynb`: the model as a LangGraph router node
-5. `notebooks/05_decision_model_vs_llm_router.ipynb`: same graph, decision model vs Gemini vs hybrid, latency + $ cost
-   (needs a Gemini API key, CPU is fine)
+4. `notebooks/04_langgraph_decision_router.ipynb`: fine-tuned Laya as a LangGraph router node
+5. `notebooks/05_laya_vs_llm_router.ipynb`: same graph, Laya vs Gemini vs hybrid (Laya first, Gemini when unsure),
+   latency + $ cost (needs the fine-tuned Laya on Drive and a Gemini API key)
 
 ## Project structure
 
@@ -96,23 +96,24 @@ Exact match = all three fields right. Full numbers (accuracy too) are in noteboo
 - **Cost:** for about the same quality, XGBoost is ~300x smaller and runs faster on a CPU than Laya does on a GPU.
   Laya is the pick when you need calibrated confidences, or want to add new questions without re-engineering features.
 - **BERT** is the fastest (10.5 ms on GPU) but reads numbers as text, which hurts priority.
-- In the LangGraph demo (notebook 04, XGBoost router) 92% of 100 test tickets reached the right node, and the router
-  was ~17 of the ~19 ms per ticket.
+- In the first LangGraph run (notebook 04, with XGBoost as the router) 92% of 100 test tickets reached the right node,
+  and the router was ~17 of the ~19 ms per ticket. Notebook 04 now uses fine-tuned Laya as the router: TODO re-run.
 
 Caveats: synthetic data with rule-based labels (trees are well suited to learning thresholds), one seed, CPU vs GPU
 latency.
 
-### Decision model vs LLM router (notebook 05)
+### Laya vs LLM router (notebook 05)
 
 Same LangGraph workflow, same 100 test tickets, only the router node changes. Gemini gets the routing policy in words
-plus 12 labelled examples and answers in schema-checked JSON. The hybrid sends a ticket to Gemini only when the
-decision model's least confident field is below 0.7.
+plus 12 labelled examples and answers in schema-checked JSON. The hybrid runs Laya on every ticket and sends it to
+Gemini only when Laya's least confident field is below the threshold.
 
 | router | correct destination | exact match | router p50 / p95 (ms) | LLM share | $ per 1k tickets |
 |---|---|---|---|---|---|
-| XGBoost | TODO | TODO | TODO | 0% | TODO |
+| Laya fine-tuned (T4) | TODO | TODO | TODO | 0% | TODO |
 | Gemini only (`gemini-3.1-flash-lite`) | TODO | TODO | TODO | 100% | TODO |
-| Hybrid XGBoost→Gemini | TODO | TODO | TODO | TODO | TODO |
+| Hybrid Laya→Gemini | TODO | TODO | TODO | TODO | TODO |
+| XGBoost (reference, CPU) | TODO | TODO | TODO | 0% | TODO |
 
 Gemini prices from the [official pricing page](https://ai.google.dev/gemini-api/docs/pricing) (checked 2026-10-19).
 Local compute is priced at an assumed $0.04/h CPU and $0.35/h T4 GPU.
