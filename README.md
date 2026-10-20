@@ -130,6 +130,9 @@ network round trip from Colab (free-tier key; the rate-limit pauses between call
 - **The hybrid hurt** (0.76 → 0.71): it sent 24% of tickets to Gemini, which is weaker than Laya even on the tickets
   Laya is unsure about. A cascade only pays off if the fallback is stronger.
 
-## Licenses of the models used
+## License
 
-Laya checkpoints: Apache-2.0. bert-base-uncased: Apache-2.0. See each model card.
+Code in this repo: [Apache-2.0](LICENSE), the same license as Laya.
+
+Models used: Laya checkpoints and bert-base-uncased are both Apache-2.0 (see each model card). Gemini is used through
+Google's API under its own terms.
