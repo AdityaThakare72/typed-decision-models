@@ -16,13 +16,15 @@ dependencies = [
 laya = ["laya>=0.4.11", "torch>=2.2", "transformers>=4.48"]
 # BERT baseline + Hugging Face datasets loader.
 bert = ["torch>=2.2", "transformers>=4.48", "datasets>=2.18", "accelerate>=0.30"]
-# LangGraph router demo (notebook 04).
+# LangGraph router demo (notebooks 04 + 05).
 graph = ["langgraph>=0.2"]
+# Gemini LLM router (notebook 05).
+llm = ["google-genai>=2.0"]
 # Charts in the benchmark notebook.
 viz = ["matplotlib>=3.8"]
 
 [dependency-groups]
-dev = ["pytest>=8.0"]
+dev = ["pytest>=8.0", "langgraph>=0.2"]
 
 [tool.uv]
 package = false
