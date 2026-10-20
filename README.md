@@ -96,8 +96,9 @@ Exact match = all three fields right. Full numbers (accuracy too) are in noteboo
 - **Cost:** for about the same quality, XGBoost is ~300x smaller and runs faster on a CPU than Laya does on a GPU.
   Laya is the pick when you need calibrated confidences, or want to add new questions without re-engineering features.
 - **BERT** is the fastest (10.5 ms on GPU) but reads numbers as text, which hurts priority.
-- In the first LangGraph run (notebook 04, with XGBoost as the router) 92% of 100 test tickets reached the right node,
-  and the router was ~17 of the ~19 ms per ticket. Notebook 04 now uses fine-tuned Laya as the router: TODO re-run.
+- In the LangGraph workflow (notebook 04) with fine-tuned Laya as the router, 90 of 100 test tickets reached the right
+  node; the router took p50 53 / p95 136 ms of the 57 / 142 ms per ticket on a T4. (XGBoost as the router: 92 of 100,
+  17 / 24 ms on CPU.)
 
 Caveats: synthetic data with rule-based labels (trees are well suited to learning thresholds), one seed, CPU vs GPU
 latency.
