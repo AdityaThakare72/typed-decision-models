@@ -60,6 +60,14 @@ def test_outputs_to_frame():
     assert frame.iloc[0].to_dict() == {"route_target": "fraud", "priority_level": "high", "requires_human": True}
 
 
+def test_min_confidence():
+    plain = DecisionOutput("billing", "low", False, confidence=0.9)
+    assert plain.min_confidence() == 0.9   # no per-field numbers -> route confidence
+    detailed = DecisionOutput("billing", "low", False, confidence=0.9,
+                              field_confidences={"route_target": 0.9, "priority_level": 0.4, "requires_human": 0.8})
+    assert detailed.min_confidence() == 0.4
+
+
 def test_metrics_on_hand_made_example():
     y_true = pd.DataFrame({
         "route_target": ["billing", "billing", "fraud", "orders"],

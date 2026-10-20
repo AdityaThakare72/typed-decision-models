@@ -37,14 +37,16 @@ uv run python -m src.dataset      # builds data/train.csv, val.csv, test.csv
 uv run pytest                     # offline tests
 ```
 
-Optional extras: `uv sync --extra laya --extra bert --extra graph --extra viz`.
+Optional extras: `uv sync --extra laya --extra bert --extra graph --extra llm --extra viz`.
 
 On Colab (GPU for Laya / BERT), open the notebooks in order. Each one clones this repo in its first cell:
 
 1. `notebooks/01_dataset_and_classical_ml.ipynb`: EDA, RF + XGBoost
 2. `notebooks/02_laya_base_vs_finetuned.ipynb`: Laya zero-shot vs fine-tuned
 3. `notebooks/03_full_benchmark_laya_vs_xgboost_rf_bert.ipynb`: everything head to head, with charts
-4. `notebooks/04_langgraph_decision_router.ipynb`: the model as a LangGraph router node
+4. `notebooks/04_langgraph_decision_router.ipynb`: fine-tuned Laya as a LangGraph router node
+5. `notebooks/05_laya_vs_llm_router.ipynb`: same graph, Laya vs Gemini vs hybrid (Laya first, Gemini when unsure),
+   latency + $ cost (needs the fine-tuned Laya on Drive and a Gemini API key)
 
 ## Project structure
 
@@ -52,12 +54,15 @@ On Colab (GPU for Laya / BERT), open the notebooks in order. Each one clones thi
 src/
   dataset.py            dataset builder (offline synthetic + Hugging Face loader), Laya JSONL helpers
   interface.py          DecisionModel base class, DecisionOutput, metrics, p50/p95 latency, run_benchmark
+  router_graph.py       LangGraph support workflow with any DecisionModel as the router node
   models/
     classical_ml.py     RF + XGBoost (TF-IDF + one-hot + scaler in a ColumnTransformer)
     laya_model.py       Laya wrapper (any checkpoint) + finetune_laya
     bert_baseline.py    bert-base-uncased with 3 heads
-tests/                  offline pytest suite (no GPU / internet needed)
-notebooks/              Colab-ready notebooks 01-04
+    llm_router.py       Gemini as a router (structured JSON output) + token / $ tracking
+    hybrid.py           decision model first, LLM only for unsure tickets
+tests/                  offline pytest suite (no GPU / internet / API key needed)
+notebooks/              Colab-ready notebooks 01-05
 data/                   generated CSVs (git-ignored)
 RESEARCH.md             Laya findings + links
 NOTES.md                file-by-file explainer + concepts
@@ -91,11 +96,27 @@ Exact match = all three fields right. Full numbers (accuracy too) are in noteboo
 - **Cost:** for about the same quality, XGBoost is ~300x smaller and runs faster on a CPU than Laya does on a GPU.
   Laya is the pick when you need calibrated confidences, or want to add new questions without re-engineering features.
 - **BERT** is the fastest (10.5 ms on GPU) but reads numbers as text, which hurts priority.
-- In the LangGraph demo (notebook 04, XGBoost router) 92% of 100 test tickets reached the right node, and the router
-  was ~17 of the ~19 ms per ticket.
+- In the first LangGraph run (notebook 04, with XGBoost as the router) 92% of 100 test tickets reached the right node,
+  and the router was ~17 of the ~19 ms per ticket. Notebook 04 now uses fine-tuned Laya as the router: TODO re-run.
 
 Caveats: synthetic data with rule-based labels (trees are well suited to learning thresholds), one seed, CPU vs GPU
 latency.
+
+### Laya vs LLM router (notebook 05)
+
+Same LangGraph workflow, same 100 test tickets, only the router node changes. Gemini gets the routing policy in words
+plus 12 labelled examples and answers in schema-checked JSON. The hybrid runs Laya on every ticket and sends it to
+Gemini only when Laya's least confident field is below the threshold.
+
+| router | correct destination | exact match | router p50 / p95 (ms) | LLM share | $ per 1k tickets |
+|---|---|---|---|---|---|
+| Laya fine-tuned (T4) | TODO | TODO | TODO | 0% | TODO |
+| Gemini only (`gemini-3.1-flash-lite`) | TODO | TODO | TODO | 100% | TODO |
+| Hybrid Laya→Gemini | TODO | TODO | TODO | TODO | TODO |
+| XGBoost (reference, CPU) | TODO | TODO | TODO | 0% | TODO |
+
+Gemini prices from the [official pricing page](https://ai.google.dev/gemini-api/docs/pricing) (checked 2026-10-19).
+Local compute is priced at an assumed $0.04/h CPU and $0.35/h T4 GPU.
 
 ## Licenses of the models used
 

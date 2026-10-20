@@ -82,6 +82,29 @@ measured the same way.
   stock `transformers` model and the package doesn't support it (details in RESEARCH.md).
 - Heavy imports (`laya`, `torch`) live inside functions, so tests can import this file on a laptop with no GPU.
 
+### `src/models/llm_router.py`: Gemini as the router
+
+- `GeminiDecisionModel` asks Gemini for the decision. It sends a **system prompt** (team descriptions, the routing
+  policy in plain words, 12 labelled example tickets) and the ticket as JSON.
+- **Structured output:** we pass a JSON schema (`DECISION_JSON_SCHEMA`) with enums for team and priority, so Gemini
+  must answer `{"route_target": "fraud", ...}` instead of free text. `parse_llm_json` still checks it, and a broken
+  answer sends the ticket to a human (and is counted as a failure).
+- Every call records latency and **token counts** from `usage_metadata`; `cost_usd` turns tokens into dollars with
+  the prices in `GEMINI_PRICES_PER_1M`.
+- Retries on rate limits (HTTP 429) and server errors with a doubling pause. An optional pause between calls keeps a
+  free-tier key under its requests-per-minute limit; that pause is not counted as latency.
+
+### `src/models/hybrid.py`: decision model first, LLM when unsure
+
+`HybridDecisionModel(fast, slow, threshold)` runs the fast model on every ticket and only calls the slow one when the
+fast model's **least confident field** (`DecisionOutput.min_confidence()`) is below the threshold.
+
+### `src/router_graph.py`: the LangGraph workflow, reusable
+
+`build_router_graph(model)` builds the notebook-04 graph around any DecisionModel; `run_tickets(graph, df)` sends
+tickets through and records where each one landed and how long it took. Notebook 05 uses it to swap routers without
+touching the graph.
+
 ### `tests/`
 
 Offline pytest suite: no internet, no torch.
@@ -90,12 +113,15 @@ Offline pytest suite: no internet, no torch.
 - `test_interface.py`: metrics on a hand-worked example, latency percentiles, the benchmark table, using a
   `DummyModel` (always says billing/medium/no) and an `OracleModel` (reads the answers, must score 1.0).
 - `test_models.py`: real RF/XGB fits on 300 rows, plus Laya/BERT decoding logic fed fake outputs.
+- `test_llm_router.py`: the Gemini router with a **fake client** (canned answers, fake token counts, fake 429 errors),
+  the hybrid's escalation rule, and the LangGraph wrapper end to end. No API key needed.
 
 Run with `uv run pytest`.
 
 ### `notebooks/`
 
-01 data + trees · 02 Laya three ways · 03 everything together with charts · 04 the model inside a LangGraph agent.
+01 data + trees · 02 Laya three ways · 03 everything together with charts · 04 Laya inside a LangGraph agent ·
+05 Laya vs LLM vs hybrid (Laya first, Gemini when unsure) as the router, with latency and dollar cost.
 Each has a markdown explanation before every code cell, and a first cell that clones the repo on Colab.
 
 ---
@@ -201,3 +227,28 @@ LangGraph models an agent workflow as a **graph**: nodes are steps, edges are "w
 flows through. A **conditional edge** is a function that reads the state and returns the next node's name. Our router
 node fills in the typed decision; the conditional edge reads `route` / `requires_human` / `confidence` and picks the
 specialist. Because the decision is already typed, there is no text parsing.
+
+### LLM routing, tokens and cost
+
+An LLM router is a generative model asked to fill in the decision. It needs no training data, only a prompt, and it
+understands language well. But:
+- **Every call is a network round trip** to someone else's servers, plus the time to read the prompt and write the
+  answer. Hundreds of milliseconds instead of a few.
+- **You pay per token.** A *token* is a chunk of text, roughly ¾ of a word. Input tokens (the prompt, which includes
+  our policy and examples on *every* call) and output tokens (the answer, plus any "thinking") are priced separately,
+  per million. Cost per ticket = input tokens × input price + output tokens × output price.
+- **Numbers are hard to follow from words.** "Weigh urgency, tier and past failures" is fuzzy; a tree learns the exact
+  thresholds from data.
+
+**Structured output** (a JSON schema with enums) removes the parsing problem: the model can only answer with a valid
+team name and priority level.
+
+### Cascades (the hybrid router)
+
+Send every request to the cheap, fast model; escalate only the ones it is unsure about to the expensive one. Most
+traffic is easy, so you pay LLM prices for a small slice.
+
+**Analogy:** a hospital triage nurse sees everyone and calls the specialist only for the hard cases. The trick is the
+escalation signal. Here it's the decision model's **least confident field**, because its mistakes are mostly in
+priority while its route confidence stays high. That is also why calibrated confidence (see above) matters: a cascade
+is only as good as the model's sense of when it might be wrong.
