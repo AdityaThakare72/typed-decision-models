@@ -149,6 +149,12 @@ def test_hybrid_escalates_only_unsure_tickets(small_df):
     unsure = HybridDecisionModel(FixedModel("fast", "billing", 0.5), FixedModel("slow", "fraud", 0.9), threshold=0.7)
     assert unsure.predict_one(small_df.iloc[0]).route == "fraud"
     assert unsure.escalation_rate() == 1.0
+    assert unsure.history == [{"escalated": True, "fields": ["priority_level"], "consistency_fixes": 0}]
+
+    field = HybridDecisionModel(FixedModel("fast", "billing", 0.5), FixedModel("slow", "fraud", 0.9),
+                                threshold=0.7, mode="field")
+    # only priority was unsure, so the confident route stays "billing"
+    assert field.predict_one(small_df.iloc[0]).route == "billing"
 
 
 def test_expected_destination():
