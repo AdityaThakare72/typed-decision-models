@@ -55,12 +55,13 @@ src/
   dataset.py            dataset builder (offline synthetic + Hugging Face loader), Laya JSONL helpers
   interface.py          DecisionModel base class, DecisionOutput, metrics, p50/p95 latency, run_benchmark
   router_graph.py       LangGraph support workflow with any DecisionModel as the router node
+  analysis.py           paired analysis: fixed / broke tables, paired bootstrap, threshold selection
   models/
     classical_ml.py     RF + XGBoost (TF-IDF + one-hot + scaler in a ColumnTransformer)
     laya_model.py       Laya wrapper (any checkpoint) + finetune_laya
     bert_baseline.py    bert-base-uncased with 3 heads
     llm_router.py       Gemini as a router (structured JSON output) + token / $ tracking
-    hybrid.py           decision model first, LLM only for unsure tickets
+    hybrid.py           decision model first, LLM only for unsure tickets (whole decision or unsure fields only)
 tests/                  offline pytest suite (no GPU / internet / API key needed)
 notebooks/              Colab-ready notebooks 01-05
 data/                   generated CSVs (git-ignored)

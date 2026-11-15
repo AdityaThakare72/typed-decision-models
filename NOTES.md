@@ -99,6 +99,18 @@ measured the same way.
 `HybridDecisionModel(fast, slow, threshold)` runs the fast model on every ticket and only calls the slow one when the
 fast model's **least confident field** (`DecisionOutput.min_confidence()`) is below the threshold.
 
+It has two `mode`s. `"full"`: an escalated ticket takes the LLM's whole decision. `"field"`: only the fields the fast
+model was unsure about are replaced, then `apply_consistency` fixes combinations the policy rules out (critical or
+fraud ⇒ human). `history` records, per ticket, whether it escalated and which fields were replaced.
+
+### `src/analysis.py`: paired comparisons
+
+- `transition_table(before, after, truth, mask)`: on the chosen tickets, how many answers went wrong → right
+  (**fixed**), right → wrong (**broke**), or didn't change, per field and for exact match.
+- `paired_bootstrap(a, b)`: a 95% interval for the difference between two routers on the *same* tickets.
+- `simulate_hybrid` / `pick_threshold`: a hybrid's answer is a fixed function of the two models' answers, so we can try
+  every threshold offline on a selection split and freeze the best one before touching the test tickets.
+
 ### `src/router_graph.py`: the LangGraph workflow, reusable
 
 `build_router_graph(model)` builds the notebook-04 graph around any DecisionModel; `run_tickets(graph, df)` sends
@@ -113,6 +125,8 @@ Offline pytest suite: no internet, no torch.
 - `test_interface.py`: metrics on a hand-worked example, latency percentiles, the benchmark table, using a
   `DummyModel` (always says billing/medium/no) and an `OracleModel` (reads the answers, must score 1.0).
 - `test_models.py`: real RF/XGB fits on 300 rows, plus Laya/BERT decoding logic fed fake outputs.
+- `test_analysis.py`: the hybrid's merge modes and consistency check, fixed/broke counting, the paired bootstrap and
+  threshold selection, on small hand-made examples.
 - `test_llm_router.py`: the Gemini router with a **fake client** (canned answers, fake token counts, fake 429 errors),
   the hybrid's escalation rule, and the LangGraph wrapper end to end. No API key needed.
 
@@ -252,3 +266,16 @@ traffic is easy, so you pay LLM prices for a small slice.
 escalation signal. Here it's the decision model's **least confident field**, because its mistakes are mostly in
 priority while its route confidence stays high. That is also why calibrated confidence (see above) matters: a cascade
 is only as good as the model's sense of when it might be wrong.
+
+### Paired comparisons and the bootstrap
+
+Two routers scored on the **same** 100 tickets aren't two independent samples: most tickets are easy for both. So we
+compare them ticket by ticket. Out of the tickets one changed, how many did it fix, and how many did it break?
+
+For an error bar, the **bootstrap** resamples the 100 tickets with replacement (some appear twice, some not at all),
+recomputes "router B minus router A", and repeats 10,000 times. The middle 95% of those differences is the interval.
+If it includes 0, the gap could be luck. **Analogy:** re-running the exam with a slightly different mix of the same
+questions, many times, to see how much the score gap moves.
+
+**Selection split:** a threshold picked by looking at the test tickets flatters the result. So we pick it on separate
+validation tickets, freeze it, and only then run the test once.
