@@ -17,6 +17,12 @@ from src.interface import DecisionOutput, outputs_to_frame
 from src.models.hybrid import merge_decisions, uncertain_fields
 
 
+def decisions_frame(results: pd.DataFrame) -> pd.DataFrame:
+    """`run_tickets` results -> the three decisions under the label column names."""
+    renamed = results.rename(columns={"route": "route_target", "priority": "priority_level"})
+    return renamed[LABEL_COLUMNS]
+
+
 def correctness(predictions: pd.DataFrame, truth: pd.DataFrame) -> pd.DataFrame:
     """True/False per ticket for each field, plus `exact` (all three right)."""
     pred = predictions[LABEL_COLUMNS].reset_index(drop=True).astype(str)
